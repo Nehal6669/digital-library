@@ -1,0 +1,7 @@
+./gradlew test          # Linux/Mac
+cd app
+gradlew.bat test        # Windows
+
+
+
+C:/Users/nehal/eclipse-workspace/GradleProjects/app/build/reports/tests/test/index.html
