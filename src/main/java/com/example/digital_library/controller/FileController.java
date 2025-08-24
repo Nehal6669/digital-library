@@ -13,13 +13,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URLDecoder;
 import java.nio.file.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/files")
-@CrossOrigin(origins = "http://localhost:3000") // allow React frontend
 public class FileController {
 
     @Autowired
@@ -54,35 +52,37 @@ public class FileController {
         book.setAuthor(author);
         book.setCategory(category);
         book.setTotalPages(totalPages != null ? totalPages : 0);
-        book.setFilePath(filename); // store only filename
+        book.setFilePath(filename);
         bookRepository.save(book);
 
         return ResponseEntity.ok(book);
     }
 
-    // Download file (fixed to handle spaces and special characters)
+    // Read PDF inline
+    @GetMapping("/read/{filename:.+}")
+    public ResponseEntity<Resource> readFile(@PathVariable String filename) throws MalformedURLException {
+        return serveFile(filename, false);
+    }
+
+    // Download PDF
     @GetMapping("/download/{filename:.+}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename) throws MalformedURLException {
-        try {
-            // Decode URL-encoded filename
-            String decodedFilename = URLDecoder.decode(filename, "UTF-8");
+        return serveFile(filename, true);
+    }
 
-            Path filePath = uploadDir.resolve(decodedFilename).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
+    private ResponseEntity<Resource> serveFile(String filename, boolean download) throws MalformedURLException {
+        Path filePath = uploadDir.resolve(filename).normalize();
+        Resource resource = new UrlResource(filePath.toUri());
 
-            if (!resource.exists()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + decodedFilename + "\"")
-                    .body(resource);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().build();
+        if (!resource.exists()) {
+            return ResponseEntity.notFound().build();
         }
+
+        String disposition = download ? "attachment" : "inline";
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + filename + "\"")
+                .body(resource);
     }
 
     // Delete file
